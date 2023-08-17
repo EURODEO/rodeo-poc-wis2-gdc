@@ -25,6 +25,7 @@ from urllib.parse import urlparse
 from elasticsearch import Elasticsearch
 
 from wis2_gdc.backend.base import BaseBackend
+from wis2_gdc.env import COLLECTION_INDEX
 
 LOGGER = logging.getLogger(__name__)
 
@@ -106,6 +107,7 @@ class ElasticsearchBackend(BaseBackend):
 
         self.url_parsed = urlparse(self.defs.get('connection'))
         self.index_name = self.url_parsed.path.lstrip('/')
+        self.collection_index = COLLECTION_INDEX
 
         url2 = f'{self.url_parsed.scheme}://{self.url_parsed.netloc}'
 
@@ -117,6 +119,7 @@ class ElasticsearchBackend(BaseBackend):
 
         LOGGER.debug(f'ES URL: {url2}')
         LOGGER.debug(f'ES index: {self.index_name}')
+        LOGGER.debug(f'ES collections index: {self.collection_index}')
 
         settings = {
             'hosts': [url2],
@@ -135,10 +138,20 @@ class ElasticsearchBackend(BaseBackend):
         if self.es.indices.exists(index=self.index_name):
             LOGGER.debug(f'Deleting index {self.index_name}')
             self.es.indices.delete(index=self.index_name)
+            self.es.indices.delete(index=self.collection_index)
 
         LOGGER.debug(f'Creating index {self.index_name}')
         self.es.indices.create(index=self.index_name, body=self.ES_SETTINGS)
 
+        LOGGER.debug(f'Creating index {self.collection_index}')
+        self.es.indices.create(index=self.collection_index)
+
     def save(self, record: dict) -> None:
         LOGGER.debug(record)
-        self.es.index(index=self.index_name, id=record['id'], body=record)
+        response = self.es.index(index=self.index_name, body=record)
+        doc_id = response['_id']
+        for link in record['links']:
+            if link['rel'] == 'collection':
+                # Add id linking back to the original metadata
+                link['original_metadata_id'] = doc_id
+                self.es.index(index=self.collection_index, body=link)

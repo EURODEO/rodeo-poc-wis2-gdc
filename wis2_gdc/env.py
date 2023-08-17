@@ -24,3 +24,4 @@ import os
 API_URL = os.environ.get('WIS2_GDC_API_URL')
 BACKEND = os.environ.get('WIS2_GDC_BACKEND')
 CONNECTION = os.environ.get('WIS2_GDC_CONNECTION')
+COLLECTION_INDEX = os.environ.get('WIS2_GDC_COLLECTION_INDEX')
