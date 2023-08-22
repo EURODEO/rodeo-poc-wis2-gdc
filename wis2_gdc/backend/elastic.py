@@ -20,12 +20,13 @@
 ###############################################################################
 
 import logging
+import click
 from urllib.parse import urlparse
 
 from elasticsearch import Elasticsearch
 
 from wis2_gdc.backend.base import BaseBackend
-from wis2_gdc.env import COLLECTION_INDEX
+from wis2_gdc.env import COLLECTION_INDEX, EWC_URL, AWS_URL
 
 LOGGER = logging.getLogger(__name__)
 
@@ -107,7 +108,9 @@ class ElasticsearchBackend(BaseBackend):
 
         self.url_parsed = urlparse(self.defs.get('connection'))
         self.index_name = self.url_parsed.path.lstrip('/')
-        self.collection_index = COLLECTION_INDEX
+        self.collection_index = str(COLLECTION_INDEX)
+        self.aws_url = str(AWS_URL)
+        self.ewc_url = str(EWC_URL)
 
         url2 = f'{self.url_parsed.scheme}://{self.url_parsed.netloc}'
 
@@ -147,11 +150,30 @@ class ElasticsearchBackend(BaseBackend):
         self.es.indices.create(index=self.collection_index)
 
     def save(self, record: dict) -> None:
+        url_to_replace_with = ''
+        enviroment = click.prompt(text='Type 1 for EWC and 2 AWS', type=click.IntRange(1,2))
+        if enviroment is 1:
+            url_to_replace_with = self.ewc_url
+        elif enviroment is 2:
+            url_to_replace_with = self.aws_url
+        else:
+            click.UsageError("Provide either value 1 or 2")
+
         LOGGER.debug(record)
         response = self.es.index(index=self.index_name, body=record)
         doc_id = response['_id']
+        collections = []
         for link in record['links']:
             if link['rel'] == 'collection':
                 # Add id linking back to the original metadata
                 link['original_metadata_id'] = doc_id
-                self.es.index(index=self.collection_index, body=link)
+                collection_response = self.es.index(index=self.collection_index, body=link)
+                #Remove reference before updating original data
+                link.pop('original_metadata_id')
+                link['href'] = url_to_replace_with + '/' +  collection_response['_id']
+                collections.append(link)
+        record['links'] = collections
+        # Save whole documented with updated links
+        self.es.update(index=self.index_name, id=doc_id, body={"doc": record})
+
+
