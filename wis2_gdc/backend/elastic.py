@@ -152,9 +152,9 @@ class ElasticsearchBackend(BaseBackend):
     def save(self, record: dict) -> None:
         url_to_replace_with = ''
         enviroment = click.prompt(text='Type 1 for EWC and 2 AWS', type=click.IntRange(1,2))
-        if enviroment is 1:
+        if enviroment == 1:
             url_to_replace_with = self.ewc_url
-        elif enviroment is 2:
+        elif enviroment == 2:
             url_to_replace_with = self.aws_url
         else:
             click.UsageError("Provide either value 1 or 2")
