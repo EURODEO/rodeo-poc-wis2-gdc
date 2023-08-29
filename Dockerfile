@@ -20,9 +20,4 @@ RUN cd /myapp/venv && \
 ENV VIRTUAL_ENV=/"/myapp/venv"
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-ENV WIS2_GDC_API_URL=http://localhost:5000
-ENV WIS2_GDC_BACKEND=Elasticsearch
-ENV WIS2_GDC_CONNECTION=http://elasticsearch:9200/wis2-discovery-metadata
-ENV WIS2_GDC_COLLECTION_INDEX=metadata_collection
-
 CMD [ "/bin/bash"]
